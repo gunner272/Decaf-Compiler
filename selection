@@ -1,0 +1,22 @@
+class Program
+{
+    int main(int argc)
+    {
+        int i, j, tmp;
+        int n;
+        int arr;
+
+        for i = 0, i < n
+        {
+            for j = i, j < n
+            {
+                if (arr[j] < arr[i])
+                {
+                    tmp = arr[j];
+                    arr[j] = arr[i];
+                    arr[i] = arr[j];
+                }
+            }
+        }
+    }
+}

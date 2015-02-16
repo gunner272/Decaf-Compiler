@@ -1,0 +1,40 @@
+class Program
+{
+    int main(int argc)
+    {
+        int l, h, m;
+        int n, v;
+        int arr;
+        
+        l = 0;
+        h = n - 1;
+
+        for l = 0, l <= h
+        {
+            m = (l + h) / 2;
+
+            if (arr[m] == v)
+            {
+                print();
+                break;
+            }
+            else
+            {
+                if (arr[m] < v)
+                {
+                    l = m + 1;
+                }
+                else
+                {
+                    h = m - 1;
+                }
+            }
+        }
+    }
+
+    void print()
+    {
+
+    }
+
+}

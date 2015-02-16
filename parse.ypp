@@ -1,0 +1,225 @@
+%glr-parser
+%{
+//#include "node.cpp"   
+//#include "functions.cpp"
+#include "codegen.cpp"
+#include<bits/stdc++.h>
+#define pb push_back
+using namespace std;
+int yylex(); 
+int yyerror(const char *p) { cerr<<p<< "Parse error!" << endl; }
+ASTProgram *MAIN;
+%}
+
+
+
+%union
+{
+    ASTBoolLiteral *boo;
+    ASTLiteral *lit;
+    ASTIntLiteral *lint;
+    ASTLocation *loc;
+    ASTExpr *ex;
+    ASTNormalMethodCall *nmc;
+    ASTMethodCall *mc;
+    ASTCalloutSub *acs;
+    string *str;
+    vector<ASTExpr>* fop;
+    vector<ASTCalloutSub>* vacs;
+    ASTAssignmentStmt *as;
+    ASTStatement *st;
+    ASTAssign *asdn;    
+    vector<ASTStatement>*vstmt;
+    vector<string>*vstr;
+    ASTVarsSub * dbs;
+    vector<ASTVarsSub> *vdbs;
+    ASTBlock *blck;
+    ASTIFStmt *ifelst;
+    ASTMetDecl *mdc;
+    vector<ASTMetDecl> *vmdc;
+    ASTFieldDecl *fdl;
+    vector<ASTFieldDecl> *vfdl;
+    ASTVariable *vbl;
+    vector<ASTVariable> *vvbl;
+
+
+}
+
+%token <str>  CLASS PROG VOID INT BOOL IF FOR BREAK CONT CALLOUT LC RC LP RP MULOP DIVOP ADDOP SUBOP MODOP NOTOP GT GE LT LE EQ NE TRUE FALSE DEC_LIT IDF HEX_LIT CHAR_LIT STR_LIT ANDOP OROP COMMA STOP RETURN ELSE EQUALS LS RS 
+
+%type <boo> bool_lit
+%type <lit> literal
+%type <lint> int_lit
+%type <loc> location
+%type <ex> expr
+%type <fop> expr_calls_sub expr_calls
+%type <mc> method_call
+%type <acs> callout_args_sub
+%type <vacs> callout_args
+%type <st> statement
+%type <asdn> assign
+%type <str> assign_op type
+%type <vstmt> statement_block
+%type <vstr> variable_block_list 
+%type <dbs> vars_decls_block_sub vars_decls_sub
+%type <vdbs> vars_decls_block vars_decls
+%type <blck> block else_block
+%type <mdc> met_decl
+%type <vmdc> met_decls
+%type <fdl> field_decl
+%type <vfdl> field_decls
+%type <vbl> variable
+%type <vvbl> variable_list
+
+%left OROP
+%left ANDOP
+%left EQ NE
+%left GT GE LT LE
+%left ADDOP SUBOP
+%left MULOP DIVOP MODOP
+%left NOTOP
+
+
+//-- GRAMMAR RULES ---------------------------------------
+%%
+prog: CLASS PROG LC field_decls met_decls RC { MAIN = new ASTProgram(*$4,*$5);}
+| CLASS PROG LC field_decls RC {MAIN = new ASTProgram(*$4);}
+| CLASS PROG LC met_decls RC {MAIN = new ASTProgram(*$4);}
+| CLASS PROG LC  RC  {MAIN = new ASTProgram();}
+
+
+
+field_decls:field_decl {$$ = new vector<ASTFieldDecl>;$$->pb(*$1);}
+|field_decls field_decl { $1->pb(*$2); $$=$1;}
+
+
+field_decl:type variable_list STOP { $$ = new ASTFieldDecl(*$1,*$2); }
+
+variable_list:variable { $$ = new vector<ASTVariable>();$$->pb(*$1);}
+|variable_list COMMA variable { $1->pb(*$3);$$=$1;}
+
+variable:IDF { $$ = new ASTVariable(*$1);}
+|IDF LS int_lit RS { $$ = new ASTVariable(*$1,*$3);}
+
+met_decls:met_decl { $$ = new vector<ASTMetDecl>();$$->pb(*$1);}
+|met_decls met_decl { $1->pb(*$2);$$ = $1;}
+
+met_decl:VOID IDF LP RP block { $$ = new ASTMetDecl("void",*$2,*$5);}
+|type IDF LP  RP block { $$ =new ASTMetDecl(*$1,*$2,*$5);}
+|type IDF LP vars_decls RP block  { $$ = new ASTMetDecl(*$1,*$2,*$4,*$6);}
+|VOID IDF LP vars_decls RP block{$$ = new ASTMetDecl("void",*$2,*$4,*$6);}
+
+vars_decls:vars_decls_sub { $$ = new vector<ASTVarsSub>();$$->pb(*$1);}
+|vars_decls COMMA vars_decls_sub { $1->pb(*$3);$$ = $1;}
+
+vars_decls_sub:type IDF { vector<string> st; st.pb(*$2);$$ = new ASTVarsSub(*$1,st);}
+
+
+block: LC vars_decls_block statement_block RC { $$ = new ASTBlock(*$2,*$3);}
+| LC statement_block RC { $$ = new ASTBlock (*$2);}
+
+vars_decls_block:vars_decls_block_sub { $$ = new vector<ASTVarsSub>();$$->pb(*$1);}
+| vars_decls_block vars_decls_block_sub { $1->pb(*$2);$$ = $1;}
+
+vars_decls_block_sub: type variable_block_list STOP { $$ = new ASTVarsSub(*$1,*$2);}
+
+variable_block_list:IDF { $$ = new vector<string>();$$->pb(*$1);}
+|variable_block_list COMMA IDF { $1->pb(*$3); $$ = $1;}
+
+statement_block: { $$ =new vector<ASTStatement>();}
+|statement_block statement { $1->pb(*$2); $$ = $1;}
+
+type:INT { $$ = new string ("int");}
+|BOOL { $$ = new string ( "boolean");}
+
+statement:location assign_op expr STOP 
+    { ASTAssignmentStmt *x = new ASTAssignmentStmt(*$1,*$2,*$3); $$ = new ASTStatement(*x);}
+|method_call STOP { $$ = new ASTStatement(*$1);}
+|IF LP expr RP block else_block { ASTIFStmt *x = new ASTIFStmt(*$3,*$5,*$6); $$ = new ASTStatement(*x);}
+|FOR assign COMMA  expr block { ASTForStmt *x = new ASTForStmt(*$2,*$4,*$5); $$ = new ASTStatement(*x);}
+|RETURN STOP { ASTReturnStmt *x = new ASTReturnStmt();$$ = new ASTStatement(*x);}
+|RETURN expr STOP{ ASTReturnStmt *x = new ASTReturnStmt(*$2);$$ = new ASTStatement(*x);}
+|BREAK STOP { ASTBreakStmt *x = new ASTBreakStmt(); $$ = new ASTStatement(*x);}
+|CONT STOP { ASTContStmt *x = new ASTContStmt(); $$ = new ASTStatement(*x);}
+|block { $$ = new ASTStatement(*$1); }   
+
+else_block: { $$ = new ASTBlock();}
+|ELSE block { $$ = $2 ;}
+
+assign: { $$ = new ASTAssign();}
+|IDF EQUALS expr {  $$ = new ASTAssign(*$1,*$3);} 
+
+assign_op:EQUALS { $$ = new string("=");}
+|ADDOP EQUALS { $$ = new string("+=");}
+|SUBOP EQUALS { $$ = new string("-=");}
+
+method_call:IDF LP expr_calls RP  
+    {
+        ASTNormalMethodCall *x = new ASTNormalMethodCall(*$1, *$3);
+        $$ = new ASTMethodCall(*x);
+    }
+|CALLOUT LP STR_LIT callout_args RP 
+{ 
+	ASTCalloutMethodCall *x = new ASTCalloutMethodCall(*$3,*$4); 
+        $$ = new ASTMethodCall(*x);
+}
+
+
+expr_calls: { $$ = new vector<ASTExpr>();}
+|expr_calls_sub { $$ = $1;}
+
+expr_calls_sub:expr { $$ = new vector<ASTExpr>(); $$->pb(*$1);}
+|expr_calls_sub COMMA expr { $1->pb(*$3); $$ = $1;}
+
+location:IDF { $$ = new ASTLocation(*$1);}
+|IDF LS expr RS  { $$ = new ASTLocation(*$1,*$3) ;}
+
+callout_args:{ $$ = new vector<ASTCalloutSub>();}
+|callout_args COMMA callout_args_sub { $1->pb(*$3);$$=$1; }  
+
+callout_args_sub:expr { $$ = new ASTCalloutSub(*$1);}
+|STR_LIT { $$ = new ASTCalloutSub(*$1);}
+
+expr:expr OROP expr { ASTBinexpr *x = new ASTBinexpr(*$1,"||",*$3);$$ = new ASTExpr(*x);} 
+|expr ANDOP expr { ASTBinexpr *x = new ASTBinexpr(*$1,"&&",*$3);$$ = new ASTExpr(*x);} 
+|expr LT expr{ ASTBinexpr *x = new ASTBinexpr(*$1,"<",*$3);$$ = new ASTExpr(*x);} 
+|expr GT expr{ ASTBinexpr *x = new ASTBinexpr(*$1,">",*$3);$$ = new ASTExpr(*x);} 
+|expr LE expr{ ASTBinexpr *x = new ASTBinexpr(*$1,"<=",*$3);$$ = new ASTExpr(*x);} 
+|expr GE expr{ ASTBinexpr *x = new ASTBinexpr(*$1,">=",*$3);$$ = new ASTExpr(*x);} 
+|expr EQ expr{ ASTBinexpr *x = new ASTBinexpr(*$1,"==",*$3);$$ = new ASTExpr(*x);} 
+|expr NE expr{ ASTBinexpr *x = new ASTBinexpr(*$1,"!=",*$3);$$ = new ASTExpr(*x);} 
+|expr ADDOP expr{ ASTBinexpr *x = new ASTBinexpr(*$1,"+",*$3);$$ = new ASTExpr(*x);} 
+|expr SUBOP expr{ ASTBinexpr *x = new ASTBinexpr(*$1,"-",*$3);$$ = new ASTExpr(*x);} 
+|expr MULOP expr{ ASTBinexpr *x = new ASTBinexpr(*$1,"*",*$3);$$ = new ASTExpr(*x);} 
+|expr DIVOP expr{ ASTBinexpr *x = new ASTBinexpr(*$1,"/",*$3);$$ = new ASTExpr(*x);} 
+|expr MODOP expr { ASTBinexpr *x = new ASTBinexpr(*$1,"%",*$3);$$ = new ASTExpr(*x);}  
+|SUBOP expr %prec SUBOP {  ASTUnexpr *x = new ASTUnexpr("-",*$2);$$ = new ASTExpr(*x);} 
+|NOTOP expr { ASTUnexpr *x = new ASTUnexpr("!",*$2);$$ = new ASTExpr(*x);}
+|LP expr RP { $$ = $2;} 
+|literal  { $$ = new ASTExpr(*$1);}
+|location {$$ = new ASTExpr(*$1);}  
+|method_call { $$ = new ASTExpr(*$1);} 
+
+
+literal:int_lit { $$ = new ASTLiteral ($1 -> val);}
+|CHAR_LIT { $$ = new ASTLiteral (*$1); }
+|bool_lit { $$ = new ASTLiteral ($1 -> val);}
+
+int_lit:DEC_LIT { $$ = new ASTIntLiteral(*$1);}
+|HEX_LIT { $$ = new ASTIntLiteral(*$1);}
+
+bool_lit:TRUE { $$ =  new ASTBoolLiteral("1");}
+|FALSE { $$ =  new ASTBoolLiteral("0");}
+
+%%
+//-- FUNCTION DEFINITIONS ---------------------------------
+int main()
+{
+	if(!yyparse())
+	{
+//        program_print(MAIN,0);
+	CodeGenContext context;
+        context.generateCode(MAIN);
+	}
+	return 0;
+}

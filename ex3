@@ -1,0 +1,54 @@
+class Program
+{
+    int a,b,c;
+    boolean t;
+    void ab(int t, int a)
+    {
+        int a,b,c,d,e;
+        int f,g;
+	int y;
+        boolean r;
+	
+	int x;
+	b = 3+d;
+	b = c && d;
+	b = c || d;
+	b = (c == d);
+	b = (c <= d);
+	
+	{
+		int x;
+		x=3;
+	}
+
+        return;
+        return a;
+        continue;
+        break;
+        r = 1;
+        t = 2;
+        if(x==y)
+        {
+            r=1;
+            t=1;
+        }
+        else
+        {
+            t=1;
+        }
+	b=3;
+	x=1;
+        for x = 1, x<=4
+        {
+		x = x+1;	
+        }
+    }
+
+    int x()
+    {
+	    int t,a;
+	    int a;
+	    t = 5;
+	    ab(t,a);
+    }
+}
